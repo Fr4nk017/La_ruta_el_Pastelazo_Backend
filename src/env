@@ -1,3 +1,0 @@
-PORT = 4000
-MONGO_URI= mongodb+srv://franciscolevipil19_db_user:JDI45VDRhS4Pg7mQ@cluster0.m66iepq.mongodb.net/ appName= cluster0
-JWT_SECRET= 388c6334bf64ee8ba2158d8b72b45beb7fb88cfab07d1906c9f85a3a33510fc004442cf40c56aa80fe291058a508e7eaba7a06fac318cb79c0d516c3e16e9de6 
