@@ -1,0 +1,312 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "La Ruta del Pastelazo - Multi-Tenant E-Commerce API",
+    "version": "1.0.0",
+    "description": "Backend REST API multi-tenant para eCommerce. Incluye autenticación JWT, control de acceso por roles, gestión de productos, carritos y órdenes."
+  },
+  "servers": [
+    { "url": "http://localhost:4000/api", "description": "Local Dev" }
+  ],
+  "tags": [
+    { "name": "Tenants" },
+    { "name": "Users" },
+    { "name": "Products" },
+    { "name": "Cart" },
+    { "name": "Orders" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Tenant": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "active": { "type": "boolean" }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "roleId": { "type": "string" },
+          "tenantId": { "type": "string" }
+        }
+      },
+      "Role": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "name": { "type": "string" },
+          "permissions": { "type": "object" },
+          "tenantId": { "type": "string" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "price": { "type": "number" },
+          "stock": { "type": "integer" },
+          "tenantId": { "type": "string" }
+        }
+      },
+      "CartItem": {
+        "type": "object",
+        "properties": {
+          "productId": { "type": "string" },
+          "name": { "type": "string" },
+          "price": { "type": "number" },
+          "quantity": { "type": "integer" }
+        }
+      },
+      "Cart": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "tenantId": { "type": "string" },
+          "userId": { "type": "string" },
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CartItem" } }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "_id": { "type": "string" },
+          "tenantId": { "type": "string" },
+          "userId": { "type": "string" },
+          "items": { "type": "array", "items": { "type": "object" } },
+          "total": { "type": "number" },
+          "status": { "type": "string" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "message": { "type": "string" },
+          "status": { "type": "integer" }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": { "description": "No autorizado" },
+      "Forbidden": { "description": "Prohibido" },
+      "NotFound": { "description": "Recurso no encontrado" }
+    }
+  },
+  "security": [ { "bearerAuth": [] } ],
+  "paths": {
+    "/tenants": {
+      "post": {
+        "tags": ["Tenants"],
+        "summary": "Crear tenant",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "properties": {"name": {"type": "string"}, "slug": {"type": "string"}, "ownerEmail": {"type": "string"}, "ownerPassword": {"type": "string"}, "ownerName": {"type": "string"}}, "required": ["name", "ownerEmail", "ownerPassword", "ownerName"]}}}},
+        "responses": {"201": {"description": "Tenant creado", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Tenant"}}}}, "400": {"$ref": "#/components/responses/NotFound"}}
+      }
+    },
+    "/tenants/{identifier}": {
+      "get": {
+        "tags": ["Tenants"],
+        "summary": "Obtener tenant por id o slug",
+        "parameters": [{"name": "identifier", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}, "404": {"$ref": "#/components/responses/NotFound"}}
+      }
+    },
+    "/tenants/{id}": {
+      "put": {
+        "tags": ["Tenants"],
+        "summary": "Actualizar tenant",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
+        "responses": {"200": {"description": "Actualizado"}}
+      }
+    },
+    "/tenants/{id}/status": {
+      "patch": {
+        "tags": ["Tenants"],
+        "summary": "Cambiar estado de tenant",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"active": {"type": "boolean"}}}}}},
+        "responses": {"200": {"description": "Estado actualizado"}}
+      }
+    },
+    "/tenants/{id}/stats": {
+      "get": {
+        "tags": ["Tenants"],
+        "summary": "Estadísticas tenant",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/users/register": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Registrar usuario",
+        "parameters": [{"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"name": {"type": "string"}, "email": {"type": "string"}, "password": {"type": "string"}, "roleSlug": {"type": "string"}}, "required": ["name", "email", "password"]}}}},
+        "responses": {"201": {"description": "Usuario creado"}, "400": {"description": "Datos inválidos"}}
+      }
+    },
+    "/users/login": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Login usuario",
+        "parameters": [{"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"email": {"type": "string"}, "password": {"type": "string"}}, "required": ["email", "password"]}}}},
+        "responses": {"200": {"description": "Login exitoso"}, "401": {"description": "Credenciales inválidas"}}
+      }
+    },
+    "/users/profile": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Perfil del usuario autenticado",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}, "401": {"description": "No autorizado"}}
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Listar usuarios (admin)",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}, "403": {"description": "Prohibido"}}
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Listar productos",
+        "parameters": [{"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}}
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Crear producto",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Product"}}}},
+        "responses": {"201": {"description": "Producto creado"}, "403": {"description": "Prohibido"}}
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Obtener producto",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}, "404": {"description": "No encontrado"}}
+      },
+      "put": {
+        "tags": ["Products"],
+        "summary": "Actualizar producto",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object"}}}},
+        "responses": {"200": {"description": "Actualizado"}}
+      },
+      "delete": {
+        "tags": ["Products"],
+        "summary": "Eliminar producto",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "Eliminado"}}
+      }
+    },
+    "/products/{id}/stock": {
+      "patch": {
+        "tags": ["Products"],
+        "summary": "Ajustar stock",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"delta": {"type": "integer"}}, "required": ["delta"]}}}},
+        "responses": {"200": {"description": "Stock actualizado"}}
+      }
+    },
+    "/carts": {
+      "get": {
+        "tags": ["Cart"],
+        "summary": "Obtener carrito",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/carts/items": {
+      "post": {
+        "tags": ["Cart"],
+        "summary": "Agregar item al carrito",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"productId": {"type": "string"}, "quantity": {"type": "integer"}}, "required": ["productId"]}}}},
+        "responses": {"201": {"description": "Item agregado"}}
+      }
+    },
+    "/carts/items/{productId}": {
+      "put": {
+        "tags": ["Cart"],
+        "summary": "Actualizar cantidad de item",
+        "parameters": [{"name": "productId", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"quantity": {"type": "integer"}}, "required": ["quantity"]}}}},
+        "responses": {"200": {"description": "Cantidad actualizada"}}
+      },
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Eliminar item del carrito",
+        "parameters": [{"name": "productId", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "Item eliminado"}}
+      }
+    },
+    "/carts/clear": {
+      "delete": {
+        "tags": ["Cart"],
+        "summary": "Vaciar carrito",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "Carrito vacío"}}
+      }
+    },
+    "/orders": {
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Crear orden desde carrito",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"201": {"description": "Orden creada"}}
+      },
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Listar todas las órdenes (admin/seller)",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/orders/mine": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Listar órdenes del usuario",
+        "parameters": [{"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Obtener orden",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "OK"}, "404": {"description": "No encontrada"}}
+      }
+    },
+    "/orders/{id}/status": {
+      "patch": {
+        "tags": ["Orders"],
+        "summary": "Actualizar estado de orden",
+        "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}, {"name": "Authorization", "in": "header", "required": true, "schema": {"type": "string"}}, {"name": "x-tenant-id", "in": "header", "required": true, "schema": {"type": "string"}}],
+        "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {"status": {"type": "string"}}, "required": ["status"]}}}},
+        "responses": {"200": {"description": "Estado actualizado"}}
+      }
+    }
+  }
+}
