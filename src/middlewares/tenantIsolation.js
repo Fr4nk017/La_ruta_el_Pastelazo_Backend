@@ -122,11 +122,21 @@ export const tenantIsolation = (options = {}) => {
         }
         
         if (!tenant) {
+          // Si no es requerido, simplemente continuar sin tenant
+          if (!required) {
+            console.log(`ℹ️ Tenant '${tenantIdentifier}' no encontrado, pero no es requerido. Continuando...`);
+            return next();
+          }
           throw new AppError(`Tenant '${tenantIdentifier}' no encontrado`, 404);
         }
         
         // Verificar que el tenant está activo
         if (!tenant.isActive()) {
+          // Si no es requerido, continuar sin tenant
+          if (!required) {
+            console.log(`ℹ️ Tenant '${tenant.name}' no está activo, pero no es requerido. Continuando...`);
+            return next();
+          }
           throw new AppError(
             `Tenant '${tenant.name}' no está activo. Estado: ${tenant.status}`,
             403

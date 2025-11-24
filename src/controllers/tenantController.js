@@ -1,11 +1,15 @@
 import { asyncHandler, AppError } from '../middlewares/errorHandler.js';
 import Tenant from '../models/tenant.js';
 import Role from '../models/role.js';
+import User from '../models/user.js';
+import bcrypt from 'bcryptjs';
+import { signToken } from '../middlewares/auth.js';
 
 /**
- * Crear un nuevo tenant
+ * Crear un nuevo tenant con usuario admin inicial
  * POST /api/tenants
  * Público (no requiere autenticación para permitir registro)
+ * Body: { name, slug?, domain?, contactEmail, contactPhone?, firstName, lastName, email, password, phone?, roleSlug? }
  */
 export const createTenant = asyncHandler(async (req, res) => {
   const { 
@@ -15,15 +19,28 @@ export const createTenant = asyncHandler(async (req, res) => {
     contactEmail, 
     contactPhone, 
     address,
-    settings 
+    settings,
+    // Datos del usuario admin inicial
+    firstName,
+    lastName,
+    email,
+    password,
+    phone,
+    roleSlug = 'admin'
   } = req.body;
   
+  // Validar campos requeridos para el usuario admin
+  if (!firstName || !lastName || !email || !password) {
+    throw new AppError('Los datos del usuario admin son requeridos: firstName, lastName, email, password', 400);
+  }
+  
+  // Generar slug automáticamente si no se proporciona
+  const tenantSlug = slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+  
   // Verificar si el slug ya existe
-  if (slug) {
-    const existing = await Tenant.findOne({ slug: slug.toLowerCase() });
-    if (existing) {
-      throw new AppError('El slug ya está en uso', 409);
-    }
+  const existing = await Tenant.findOne({ slug: tenantSlug.toLowerCase() });
+  if (existing) {
+    throw new AppError('El slug ya está en uso', 409);
   }
   
   // Verificar si el dominio ya existe
@@ -37,7 +54,7 @@ export const createTenant = asyncHandler(async (req, res) => {
   // Crear el tenant
   const tenant = new Tenant({
     name,
-    slug,
+    slug: tenantSlug,
     domain,
     contactEmail,
     contactPhone,
@@ -51,16 +68,81 @@ export const createTenant = asyncHandler(async (req, res) => {
   // Crear roles por defecto para el tenant
   await Role.createDefaultRoles(tenant._id);
   
+  // Buscar el rol de admin para el tenant
+  const adminRole = await Role.findOne({
+    tenantId: tenant._id,
+    slug: roleSlug.toLowerCase(),
+    isActive: true
+  });
+  
+  if (!adminRole) {
+    // Si no se encuentra el rol, eliminar el tenant creado
+    await Tenant.findByIdAndDelete(tenant._id);
+    throw new AppError(`Rol '${roleSlug}' no encontrado`, 500);
+  }
+  
+  // Verificar que el email del admin no exista en este tenant
+  const existingUser = await User.findOne({
+    tenantId: tenant._id,
+    email: email.toLowerCase()
+  });
+  
+  if (existingUser) {
+    // Eliminar el tenant si el usuario ya existe
+    await Tenant.findByIdAndDelete(tenant._id);
+    throw new AppError('El email del admin ya está registrado', 409);
+  }
+  
+  // Hashear la contraseña
+  const saltRounds = 10;
+  const passwordHash = await bcrypt.hash(password, saltRounds);
+  
+  // Crear el usuario admin
+  const adminUser = new User({
+    tenantId: tenant._id,
+    roleId: adminRole._id,
+    firstName,
+    lastName,
+    email: email.toLowerCase(),
+    passwordHash,
+    phone
+  });
+  
+  await adminUser.save();
+  
+  // Generar token JWT para el admin
+  const token = signToken(
+    {
+      id: adminUser._id,
+      tenantId: adminUser.tenantId,
+      roleId: adminUser.roleId,
+      email: adminUser.email
+    },
+    process.env.JWT_SECRET,
+    '24h'
+  );
+  
   res.status(201).json({
-    message: 'Tenant creado exitosamente',
+    message: 'Tenant y usuario admin creados exitosamente',
     data: {
-      id: tenant._id,
-      name: tenant.name,
-      slug: tenant.slug,
-      domain: tenant.domain,
-      contactEmail: tenant.contactEmail,
-      status: tenant.status,
-      createdAt: tenant.createdAt
+      tenant: {
+        id: tenant._id,
+        name: tenant.name,
+        slug: tenant.slug,
+        domain: tenant.domain,
+        contactEmail: tenant.contactEmail,
+        status: tenant.status,
+        createdAt: tenant.createdAt
+      },
+      admin: {
+        id: adminUser._id,
+        firstName: adminUser.firstName,
+        lastName: adminUser.lastName,
+        email: adminUser.email,
+        phone: adminUser.phone,
+        roleId: adminUser.roleId
+      },
+      token
     }
   });
 });
