@@ -61,8 +61,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Índice único para email
-userSchema.index({ email: 1 }, { unique: true });
+// El índice único de email ya está declarado en el campo con unique: true
 
 // Middleware: Hashear password antes de guardar
 userSchema.pre('save', async function(next) {

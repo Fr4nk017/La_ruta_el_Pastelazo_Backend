@@ -118,7 +118,7 @@ const orderSchema = new mongoose.Schema({
 // Índices para facilitar búsquedas
 orderSchema.index({ userId: 1 });
 orderSchema.index({ status: 1 });
-orderSchema.index({ orderNumber: 1 }, { unique: true });
+// orderNumber ya tiene unique: true en el campo, no necesita índice adicional
 orderSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);

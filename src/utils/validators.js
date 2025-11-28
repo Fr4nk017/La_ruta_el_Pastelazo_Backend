@@ -35,21 +35,6 @@ const loginValidator = Joi.object({
   })
 });
 
-// Validación para crear tenant
-const createTenantValidator = Joi.object({
-  name: Joi.string().required().messages({
-    'any.required': 'El nombre del tenant es requerido'
-  }),
-  slug: Joi.string().lowercase().required().messages({
-    'any.required': 'El slug es requerido'
-  }),
-  email: Joi.string().email().required().messages({
-    'string.email': 'Email inválido',
-    'any.required': 'El email es requerido'
-  }),
-  domain: Joi.string().optional()
-});
-
 // Validación para crear producto
 const createProductValidator = Joi.object({
   name: Joi.string().required().messages({
@@ -85,17 +70,6 @@ const createProductValidator = Joi.object({
   }).optional(),
   status: Joi.string().valid('active', 'draft', 'archived').optional(),
   featured: Joi.boolean().optional()
-});
-
-// Validación para añadir item al carrito
-const addToCartValidator = Joi.object({
-  productId: Joi.string().required().messages({
-    'any.required': 'El ID del producto es requerido'
-  }),
-  quantity: Joi.number().min(1).required().messages({
-    'number.min': 'La cantidad debe ser al menos 1',
-    'any.required': 'La cantidad es requerida'
-  })
 });
 
 // Validación para crear orden
@@ -149,9 +123,7 @@ module.exports = {
   validate,
   registerValidator,
   loginValidator,
-  createTenantValidator,
   createProductValidator,
-  addToCartValidator,
   createOrderValidator
 };
 
