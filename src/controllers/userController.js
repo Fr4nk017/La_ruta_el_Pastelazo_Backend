@@ -149,7 +149,7 @@ const createUser = async (req, res, next) => {
 const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, phone, role, permissions, isActive, preferences } = req.body;
+    const { firstName, lastName, email, phone, role, permissions, isActive, preferences } = req.body;
     const currentUser = req.user;
 
     // Verificar permisos: admin puede editar cualquier usuario, otros solo su perfil
@@ -172,23 +172,30 @@ const updateUser = async (req, res, next) => {
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (phone !== undefined) user.phone = phone;
-    
+    // Permitir actualizar email si es diferente
+    if (email !== undefined && email !== user.email) {
+      // Verificar que el nuevo email no esté en uso por otro usuario
+      const existingUser = await User.findOne({ email });
+      if (existingUser && existingUser._id.toString() !== id) {
+        return res.status(400).json({
+          message: 'El email ya está registrado por otro usuario',
+          statusCode: 400
+        });
+      }
+      user.email = email;
+    }
     // Solo admin puede cambiar rol, permisos y estado
     if (currentUser.role === 'admin') {
       if (role !== undefined) user.role = role;
       if (permissions !== undefined) user.permissions = permissions;
       if (isActive !== undefined) user.isActive = isActive;
     }
-    
     // Actualizar preferencias
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
     }
-
     await user.save();
-
     const updatedUser = await User.findById(id).select('-password');
-
     res.status(200).json({
       message: 'Usuario actualizado exitosamente',
       statusCode: 200,
@@ -216,23 +223,22 @@ const deleteUser = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(id);
-    if (!user) {
-      return res.status(404).json({
-        message: 'Usuario no encontrado',
-        statusCode: 404
+      const user = await User.findById(id);
+      if (!user) {
+        return res.status(404).json({
+          message: 'Usuario no encontrado',
+          statusCode: 404
+        });
+      }
+
+      // Hard delete - eliminar permanentemente
+      await User.deleteOne({ _id: id });
+
+      res.status(200).json({
+        message: 'Usuario eliminado permanentemente',
+        statusCode: 200,
+        data: { _id: id }
       });
-    }
-
-    // Soft delete - marcar como inactivo
-    user.isActive = false;
-    await user.save();
-
-    res.status(200).json({
-      message: 'Usuario desactivado exitosamente',
-      statusCode: 200,
-      data: { id: user._id, isActive: user.isActive }
-    });
   } catch (error) {
     next(error);
   }
@@ -272,7 +278,7 @@ const getProfile = async (req, res, next) => {
 const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.userId;
-    const { firstName, lastName, phone, preferences } = req.body;
+    const { firstName, lastName, email, phone, preferences } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
@@ -286,15 +292,22 @@ const updateProfile = async (req, res, next) => {
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (phone !== undefined) user.phone = phone;
-    
+    // Permitir actualizar email si es diferente
+    if (email !== undefined && email !== user.email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser && existingUser._id.toString() !== userId) {
+        return res.status(400).json({
+          message: 'El email ya está registrado por otro usuario',
+          statusCode: 400
+        });
+      }
+      user.email = email;
+    }
     if (preferences) {
       user.preferences = { ...user.preferences, ...preferences };
     }
-
     await user.save();
-
     const updatedUser = await User.findById(userId).select('-password');
-
     res.status(200).json({
       message: 'Perfil actualizado exitosamente',
       statusCode: 200,

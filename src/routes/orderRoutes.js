@@ -8,7 +8,7 @@ const {
   updateOrderStatus,
   cancelOrder
 } = require('../controllers/orderController');
-const { authenticate, requireRole } = require('../middlewares/authMiddleware');
+const { authenticate, requireRole, optionalAuth } = require('../middlewares/authMiddleware');
 
 /**
  * @swagger
@@ -39,9 +39,7 @@ const { authenticate, requireRole } = require('../middlewares/authMiddleware');
  *         description: Órdenes obtenidas exitosamente
  *   post:
  *     tags: [Orders]
- *     summary: Crear nueva orden (checkout)
- *     security:
- *       - bearerAuth: []
+ *     summary: Crear nueva orden (checkout) - Permite compras como invitado
  *     requestBody:
  *       required: true
  *       content:
@@ -101,7 +99,8 @@ const { authenticate, requireRole } = require('../middlewares/authMiddleware');
  *         description: Datos inválidos
  */
 router.get('/', authenticate, getOrders);
-router.post('/', authenticate, createOrder);
+// Usar autenticación opcional para permitir compras como invitado
+router.post('/', optionalAuth, createOrder);
 
 /**
  * @swagger

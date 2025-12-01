@@ -125,7 +125,12 @@ const getOrderById = async (req, res, next) => {
  */
 const createOrder = async (req, res, next) => {
   try {
-    const userId = req.user.userId;
+    // Permitir órdenes tanto con usuario autenticado como invitados
+    // Asegurar que userId solo se asigne si el usuario está autenticado
+    let userId = null;
+    if (req.user && req.user.userId) {
+      userId = req.user.userId;
+    }
     const {
       items,
       customerInfo,
@@ -156,13 +161,51 @@ const createOrder = async (req, res, next) => {
     let total = 0;
 
     for (const item of items) {
-      const product = await Product.findById(item.productId);
+      let product = null;
+      
+      console.log(`🔍 Buscando producto con ID: "${item.productId}" (tipo: ${typeof item.productId})`);
+      
+      // Intentar buscar por ObjectId primero
+      try {
+        if (item.productId && item.productId.match(/^[0-9a-fA-F]{24}$/)) {
+          console.log('🎯 Buscando por ObjectId...');
+          product = await Product.findById(item.productId);
+        }
+      } catch (error) {
+        console.log('❌ Error en búsqueda por ObjectId:', error.message);
+      }
+      
+      // Si no se encontró por ObjectId, buscar por nombre o slug
       if (!product) {
+        console.log('🔍 Buscando por nombre/slug...');
+        
+        // Intentar mapear nombres conocidos a productos existentes
+        const nameMapping = {
+          'torta_manjar': 'Torta Circular de Manjar',
+          'torta_choco_cuadrada': 'Torta Cuadrada de Chocolate',
+          'torta_vainilla_circular': 'Torta Circular de Vainilla'
+        };
+        
+        const searchName = nameMapping[item.productId] || item.productId;
+        
+        product = await Product.findOne({
+          $or: [
+            { name: { $regex: searchName, $options: 'i' } },
+            { name: searchName }
+          ]
+        });
+      }
+      
+      if (!product) {
+        console.log(`❌ Producto no encontrado: "${item.productId}"`);
         return res.status(404).json({
           message: `Producto no encontrado: ${item.productId}`,
           statusCode: 404
         });
       }
+      
+      console.log(`✅ Producto encontrado: ${product.name} (${product._id})`);
+      
 
       if (!product.isActive) {
         return res.status(400).json({
@@ -198,8 +241,8 @@ const createOrder = async (req, res, next) => {
     }
 
     // Crear la orden
-    const order = await Order.create({
-      userId,
+    // Solo incluir userId si existe (usuario autenticado)
+    const orderData = {
       items: processedItems,
       customerInfo,
       deliveryDate: new Date(deliveryDate),
@@ -209,7 +252,11 @@ const createOrder = async (req, res, next) => {
       couponCode,
       total,
       status: 'pending'
-    });
+    };
+    if (userId) {
+      orderData.userId = userId;
+    }
+    const order = await Order.create(orderData);
 
     // Poblar para la respuesta
     const populatedOrder = await Order.findById(order._id)

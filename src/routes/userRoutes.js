@@ -10,6 +10,7 @@ const {
   updateProfile
 } = require('../controllers/userController');
 const { authenticate, requireRole } = require('../middlewares/authMiddleware');
+const { updateUserValidator, validate } = require('../utils/validators');
 
 /**
  * @swagger
@@ -142,7 +143,7 @@ router.post('/', authenticate, requireRole(['admin']), createUser);
  *         description: Usuario no encontrado
  */
 router.get('/profile', authenticate, getProfile);
-router.put('/profile', authenticate, updateProfile);
+router.put('/profile', authenticate, validate(updateUserValidator), updateProfile);
 
 /**
  * @swagger
@@ -230,7 +231,7 @@ router.put('/profile', authenticate, updateProfile);
  *         description: Usuario no encontrado
  */
 router.get('/:id', authenticate, requireRole(['admin']), getUserById);
-router.put('/:id', authenticate, updateUser);
+router.put('/:id', authenticate, validate(updateUserValidator), updateUser);
 router.delete('/:id', authenticate, requireRole(['admin']), deleteUser);
 
 module.exports = router;

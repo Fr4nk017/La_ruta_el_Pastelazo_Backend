@@ -176,14 +176,13 @@ const deleteProduct = async (req, res, next) => {
       });
     }
 
-    // Soft delete - marcar como inactivo
-    product.isActive = false;
-    await product.save();
+    // Delete real - eliminar de la base de datos
+    await Product.deleteOne({ _id: id });
 
     res.status(200).json({
-      message: 'Producto desactivado exitosamente',
+      message: 'Producto eliminado permanentemente',
       statusCode: 200,
-      data: product
+      data: { _id: id }
     });
   } catch (error) {
     next(error);

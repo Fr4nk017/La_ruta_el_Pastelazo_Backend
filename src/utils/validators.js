@@ -20,8 +20,28 @@ const registerValidator = Joi.object({
   lastName: Joi.string().required().messages({
     'any.required': 'El apellido es requerido'
   }),
-  phone: Joi.string().optional(),
+  phone: Joi.string().pattern(/^\d{9}$/).required().messages({
+    'string.pattern.base': 'El teléfono debe tener exactamente 9 dígitos',
+    'any.required': 'El teléfono es requerido'
+  }),
   role: Joi.string().valid('admin', 'customer').optional()
+});
+
+// Validación para edición de usuario
+const updateUserValidator = Joi.object({
+  email: Joi.string().email().optional().messages({
+    'string.email': 'Email inválido'
+  }),
+  firstName: Joi.string().optional(),
+  lastName: Joi.string().optional(),
+  phone: Joi.string().pattern(/^\d{9}$/).optional().messages({
+    'string.pattern.base': 'El teléfono debe tener exactamente 9 dígitos'
+  }),
+  role: Joi.string().valid('admin', 'customer', 'trabajador').optional(),
+  permissions: Joi.array().items(Joi.string()).optional(),
+  isActive: Joi.boolean().optional(),
+  preferences: Joi.object().optional(),
+  password: Joi.string().min(6).optional()
 });
 
 // Validación para login
@@ -122,6 +142,7 @@ const validate = (schema) => {
 module.exports = {
   validate,
   registerValidator,
+  updateUserValidator,
   loginValidator,
   createProductValidator,
   createOrderValidator

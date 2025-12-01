@@ -29,8 +29,17 @@ connectDB();
 app.use(helmet());
 
 // CORS
+// Permitir múltiples orígenes en desarrollo (React y Vite)
+const allowedOrigins = (config.CORS_ORIGIN || '').split(',').map(o => o.trim());
 app.use(cors({
-  origin: config.CORS_ORIGIN,
+  origin: function(origin, callback) {
+    // Permitir requests sin origin (como Postman) o si está en la lista
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS: ' + origin));
+    }
+  },
   credentials: true
 }));
 
