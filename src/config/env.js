@@ -1,4 +1,7 @@
-require('dotenv').config();
+// Solo cargar dotenv en desarrollo local (Vercel provee variables de entorno directamente)
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 /**
  * Configuración centralizada de variables de entorno
@@ -19,5 +22,9 @@ module.exports = {
   // Permite múltiples orígenes separados por coma, útil para Vercel + localhost
   // Ejemplo en .env: CORS_ORIGIN=https://tu-frontend.vercel.app,http://localhost:5173
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  
+  // Rate Limiting
+  RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutos
+  RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
 };
 

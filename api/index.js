@@ -16,25 +16,38 @@ const orderRoutes = require('../routes/orderRoutes');
 const app = express();
 
 // =====================
-// Conectar a MongoDB (sin esperar en Vercel Serverless)
+// Conectar a MongoDB (con caché para Vercel Serverless)
 // =====================
-let dbConnected = false;
+let isConnected = false;
 
-const initializeDB = async () => {
-  if (!dbConnected) {
-    try {
-      await connectDB();
-      dbConnected = true;
-    } catch (error) {
-      console.error('Error conectando a DB:', error);
-    }
+const connectToDatabase = async () => {
+  if (isConnected && require('mongoose').connection.readyState === 1) {
+    return;
+  }
+
+  try {
+    await connectDB();
+    isConnected = true;
+    console.log('✅ Conexión a MongoDB establecida');
+  } catch (error) {
+    console.error('❌ Error conectando a MongoDB:', error.message);
+    isConnected = false;
+    throw error;
   }
 };
 
-// Middleware para asegurar que DB está conectada
+// Middleware para asegurar conexión a DB
 app.use(async (req, res, next) => {
-  await initializeDB();
-  next();
+  try {
+    await connectToDatabase();
+    next();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error de conexión a la base de datos',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 });
 
 // =====================
@@ -44,14 +57,14 @@ app.use(async (req, res, next) => {
 // Seguridad con Helmet
 app.use(helmet());
 
-// CORS
-const allowedOrigins = (config.CORS_ORIGIN || 'http://localhost:5173').split(',').map(o => o.trim());
+// CORS - Simplificado para Vercel
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
+  origin: config.CORS_ORIGIN === '*' ? '*' : function(origin, callback) {
+    const allowedOrigins = (config.CORS_ORIGIN || '*').split(',').map(o => o.trim());
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('No permitido por CORS: ' + origin));
+      callback(null, true); // Temporalmente aceptar todo mientras configuramos
     }
   },
   credentials: true
