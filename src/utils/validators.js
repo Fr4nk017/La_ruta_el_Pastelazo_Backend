@@ -37,7 +37,8 @@ const updateUserValidator = Joi.object({
   phone: Joi.string().pattern(/^\d{9}$/).optional().messages({
     'string.pattern.base': 'El teléfono debe tener exactamente 9 dígitos'
   }),
-  role: Joi.string().valid('admin', 'customer', 'trabajador').optional(),
+  // Corregido: aceptar 'cliente' en vez de 'customer' para coincidir con el modelo y frontend
+  role: Joi.string().valid('admin', 'cliente', 'trabajador').optional(),
   permissions: Joi.array().items(Joi.string()).optional(),
   isActive: Joi.boolean().optional(),
   preferences: Joi.object().optional(),

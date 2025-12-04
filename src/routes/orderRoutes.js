@@ -4,6 +4,7 @@ const {
   getOrders,
   getAllOrders,
   getOrderById,
+  getOrderPublic,
   createOrder,
   updateOrderStatus,
   cancelOrder
@@ -101,6 +102,27 @@ const { authenticate, requireRole, optionalAuth } = require('../middlewares/auth
 router.get('/', authenticate, getOrders);
 // Usar autenticación opcional para permitir compras como invitado
 router.post('/', optionalAuth, createOrder);
+
+/**
+ * @swagger
+ * /api/orders/track/{orderId}:
+ *   get:
+ *     tags: [Orders]
+ *     summary: Consultar orden por número/ID sin autenticación
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID o número de orden entregado en el correo de seguimiento
+ *     responses:
+ *       200:
+ *         description: Orden encontrada
+ *       404:
+ *         description: Orden no encontrada
+ */
+router.get('/track/:orderId', optionalAuth, getOrderPublic); // FIX: permitir seguimiento público sin obligar login
 
 /**
  * @swagger

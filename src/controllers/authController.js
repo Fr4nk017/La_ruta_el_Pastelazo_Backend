@@ -117,12 +117,13 @@ const login = async (req, res, next) => {
     // Buscar usuario (incluir password con select)
     const user = await User.findOne({ email }).select('+password');
 
+    // Mensaje claro cuando no se encuentra el usuario
     if (!user) {
-      return res.status(401).json({
+      return res.status(404).json({
         success: false,
-        message: 'Credenciales inválidas',
-        error: 'Email o contraseña incorrectos',
-        statusCode: 401
+        message: 'Usuario no encontrado',
+        error: 'No existe un usuario registrado con este email',
+        statusCode: 404
       });
     }
 
@@ -187,6 +188,7 @@ const login = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
+    console.log('🔓 Logout request received from', req.ip || 'unknown IP'); // FIX: trazabilidad para depuración
     // En JWT stateless, el logout se maneja en el frontend eliminando el token
     res.status(200).json({
       success: true,

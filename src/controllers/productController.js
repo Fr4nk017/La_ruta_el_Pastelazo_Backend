@@ -92,14 +92,30 @@ const createProduct = async (req, res, next) => {
   try {
     const { name, description, price, img, category, stock } = req.body;
 
+    // Log para debugging: verificar quién está intentando crear el producto
+    console.log('📝 Creando producto - Usuario:', req.user?.email, 'Rol:', req.user?.role);
+    console.log('📦 Datos del producto:', { name, price, category });
+
     // Validar campos requeridos
     if (!name || price === undefined || !category) {
       return res.status(400).json({
+        success: false,
         message: 'Faltan campos requeridos: name, price, category',
         statusCode: 400
       });
     }
 
+    // Validar que el precio sea válido
+    if (isNaN(price) || price <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'El precio debe ser un número mayor a 0',
+        statusCode: 400
+      });
+    }
+
+    console.log('💾 Intentando guardar en MongoDB...');
+    
     const product = await Product.create({
       name,
       description,
@@ -110,12 +126,29 @@ const createProduct = async (req, res, next) => {
       isActive: true
     });
 
+    console.log('✅ Producto creado exitosamente en la BD:', product._id);
+    console.log('📊 Producto completo:', JSON.stringify(product, null, 2));
+
     res.status(201).json({
+      success: true,
       message: 'Producto creado exitosamente',
       statusCode: 201,
       data: product
     });
   } catch (error) {
+    console.error('❌ Error al crear producto:', error.message);
+    console.error('❌ Stack completo:', error.stack);
+    
+    // Si es un error de validación de Mongoose
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Error de validación',
+        error: error.message,
+        statusCode: 400
+      });
+    }
+    
     next(error);
   }
 };

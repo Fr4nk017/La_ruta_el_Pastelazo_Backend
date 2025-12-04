@@ -16,6 +16,8 @@ module.exports = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   
   // CORS
-  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
+  // Permite múltiples orígenes separados por coma, útil para Vercel + localhost
+  // Ejemplo en .env: CORS_ORIGIN=https://tu-frontend.vercel.app,http://localhost:5173
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
 };
 

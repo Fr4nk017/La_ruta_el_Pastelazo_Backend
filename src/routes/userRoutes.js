@@ -92,7 +92,7 @@ const { updateUserValidator, validate } = require('../utils/validators');
  *       409:
  *         description: Email ya registrado
  */
-router.get('/', authenticate, requireRole(['admin']), getUsers);
+router.get('/', authenticate, requireRole(['admin', 'trabajador']), getUsers);
 router.post('/', authenticate, requireRole(['admin']), createUser);
 
 /**

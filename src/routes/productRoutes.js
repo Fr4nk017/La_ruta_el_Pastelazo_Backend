@@ -109,8 +109,18 @@ router.get('/', getProducts);
 router.get('/:id', getProductById);
 
 // Rutas protegidas que requieren autenticación
-router.post('/', authenticate, requireRole(['admin', 'trabajador']), createProduct);
+router.post('/', 
+  (req, res, next) => {
+    console.log('🔵 POST /api/products - Petición recibida');
+    console.log('🔑 Headers de autenticación:', req.headers.authorization ? 'Presente' : 'Ausente');
+    console.log('📦 Body recibido:', req.body);
+    next();
+  },
+  authenticate, 
+  requireRole(['admin', 'trabajador']), 
+  createProduct
+);
 router.put('/:id', authenticate, requireRole(['admin', 'trabajador']), updateProduct);
-router.delete('/:id', authenticate, requireRole(['admin']), deleteProduct);
+router.delete('/:id', authenticate, requireRole(['admin', 'trabajador']), deleteProduct);
 
 module.exports = router;

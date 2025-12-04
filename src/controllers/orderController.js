@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 
@@ -113,6 +114,53 @@ const getOrderById = async (req, res, next) => {
       message: 'Orden obtenida exitosamente',
       statusCode: 200,
       data: order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Obtener orden pública por ID
+ * GET /api/orders/track/:orderId
+ */
+const getOrderPublic = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        message: 'ID de orden inválido',
+        statusCode: 400
+      });
+    }
+
+    const order = await Order.findById(orderId)
+      .populate('items.productId', 'name img category');
+
+    if (!order) {
+      return res.status(404).json({
+        message: 'Orden no encontrada',
+        statusCode: 404
+      });
+    }
+
+    res.status(200).json({
+      message: 'Orden obtenida exitosamente',
+      statusCode: 200,
+      data: {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        deliveryDate: order.deliveryDate,
+        deliveryTime: order.deliveryTime,
+        items: order.items,
+        customerInfo: order.customerInfo,
+        paymentMethod: order.paymentMethod,
+        total: order.total,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt
+      }
     });
   } catch (error) {
     next(error);
@@ -375,6 +423,7 @@ module.exports = {
   getOrders,
   getAllOrders,
   getOrderById,
+  getOrderPublic,
   createOrder,
   updateOrderStatus,
   cancelOrder

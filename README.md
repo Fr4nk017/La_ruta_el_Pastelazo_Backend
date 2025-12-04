@@ -198,7 +198,76 @@ npm test         # Ejecutar tests (si están configurados)
 
 ## 🚀 Despliegue
 
-### Vercel (Recomendado)
+### Frontend en Vercel + Backend en Render/Railway (Recomendado)
+
+Para un backend Express completo, es más estable desplegar el backend en un servicio que soporte procesos persistentes (Render/Railway) y el frontend en Vercel.
+
+#### 1) Backend (Render/Railway)
+- Subir este repositorio a GitHub.
+- Crear un servicio web en Render/Railway desde el repo.
+- Configurar variables de entorno:
+  - `MONGODB_URI` (MongoDB Atlas)
+  - `JWT_SECRET`
+  - `NODE_ENV=production`
+  - `CORS_ORIGIN=https://<tu-frontend>.vercel.app`
+- Comando de inicio: `node src/server.js`
+- Verificar salud: `GET https://<tu-backend>/health` debe responder 200.
+
+#### 2) Frontend (Vercel)
+- En `src/services/api.js` del frontend, usar base por entorno:
+  - `VITE_API_BASE_URL=https://<tu-backend>/api`
+- En Vercel, definir env var `VITE_API_BASE_URL` con la URL del backend.
+- Asegurar SPA fallback (en el repo del frontend):
+```json
+{
+  "version": 2,
+  "builds": [{ "src": "package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } }],
+  "routes": [{ "handle": "filesystem" }, { "src": "/(.*)", "dest": "/index.html" }]
+}
+```
+
+#### 3) CORS
+- En el backend (`src/server.js`) se toma `CORS_ORIGIN` desde `.env`.
+- Establecer `CORS_ORIGIN` al dominio de Vercel: `https://<tu-frontend>.vercel.app`.
+- En desarrollo, usar `http://localhost:5173`.
+
+#### 4) MongoDB Atlas
+- Crear cluster y obtener cadena de conexión.
+- Colocar en `MONGODB_URI` del backend.
+
+#### 5) Pruebas post-despliegue
+- Login: `/api/auth/login` debe devolver 200 con token.
+- Perfil: `/api/users/profile` debe responder 200 con usuario.
+- Productos:
+  - `GET /api/products` lista pública
+  - `POST /api/products` (admin/trabajador) crea y responde 201
+  - `PUT /api/products/:id` actualiza
+  - `DELETE /api/products/:id` elimina
+- Usuarios:
+  - `GET /api/users` visible para admin y trabajador
+
+### Opcional: Backend en Vercel Serverless
+Requiere refactor a funciones serverless en `api/*`. No recomendado para apps Express grandes.
+
+## 🧪 Verificación Rápida (Local)
+
+Backend:
+```bash
+PORT=5000 \
+MONGODB_URI="<atlas-uri>" \
+JWT_SECRET="<secret>" \
+CORS_ORIGIN="http://localhost:5173" \
+NODE_ENV=development \
+npm run dev
+```
+
+Frontend:
+```bash
+npm run build
+npx serve dist
+```
+
+Abrir el frontend y probar login, perfil, y CRUD de productos.
 ```bash
 npm install -g vercel
 vercel --prod

@@ -129,6 +129,9 @@ router.post('/login', login);
  *       200:
  *         description: Logout exitoso
  */
-router.post('/logout', logout);
+// FIX: permitir múltiples métodos (GET/POST) para evitar 404 cuando clientes hacen peticiones distintas
+router.route('/logout')
+	.get(logout)
+	.post(logout);
 
 module.exports = router;
