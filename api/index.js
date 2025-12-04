@@ -16,9 +16,26 @@ const orderRoutes = require('../routes/orderRoutes');
 const app = express();
 
 // =====================
-// Conectar a MongoDB
+// Conectar a MongoDB (sin esperar en Vercel Serverless)
 // =====================
-connectDB();
+let dbConnected = false;
+
+const initializeDB = async () => {
+  if (!dbConnected) {
+    try {
+      await connectDB();
+      dbConnected = true;
+    } catch (error) {
+      console.error('Error conectando a DB:', error);
+    }
+  }
+};
+
+// Middleware para asegurar que DB está conectada
+app.use(async (req, res, next) => {
+  await initializeDB();
+  next();
+});
 
 // =====================
 // Middlewares Globales
@@ -64,7 +81,8 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ 
     success: true, 
     message: 'Backend is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    environment: config.NODE_ENV
   });
 });
 
@@ -79,7 +97,8 @@ app.get('/', (req, res) => {
   res.status(200).json({ 
     success: true, 
     message: 'La Ruta el Pastelazo - Backend API',
-    version: '1.0.0'
+    version: '1.0.0',
+    endpoint: 'https://la-ruta-el-pastelazo-backend.vercel.app'
   });
 });
 
