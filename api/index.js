@@ -5,13 +5,6 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 
-// Importar rutas
-const authRoutes = require('../routes/authRoutes');
-const userRoutes = require('../routes/userRoutes');
-const productRoutes = require('../routes/productRoutes');
-const orderRoutes = require('../routes/orderRoutes');
-const errorHandler = require('../middlewares/errorHandler');
-
 const app = express();
 
 // =====================
@@ -85,23 +78,34 @@ const dbMiddleware = async (req, res, next) => {
 
 // Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
+  windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Demasiadas solicitudes'
 });
 
-// Rutas API
-app.use('/api/auth', limiter, dbMiddleware, authRoutes);
-app.use('/api/users', limiter, dbMiddleware, userRoutes);
-app.use('/api/products', limiter, dbMiddleware, productRoutes);
-app.use('/api/orders', limiter, dbMiddleware, orderRoutes);
+// Cargar rutas de forma segura
+try {
+  const authRoutes = require('../routes/authRoutes');
+  const userRoutes = require('../routes/userRoutes');
+  const productRoutes = require('../routes/productRoutes');
+  const orderRoutes = require('../routes/orderRoutes');
+  const errorHandler = require('../middlewares/errorHandler');
+
+  // Rutas API
+  app.use('/api/auth', limiter, dbMiddleware, authRoutes);
+  app.use('/api/users', limiter, dbMiddleware, userRoutes);
+  app.use('/api/products', limiter, dbMiddleware, productRoutes);
+  app.use('/api/orders', limiter, dbMiddleware, orderRoutes);
+
+  // Error Handler
+  app.use(errorHandler);
+} catch (error) {
+  console.error('❌ Error cargando rutas:', error.message);
+}
 
 // 404
 app.use('*', (req, res) => {
   res.status(404).json({ success: false, message: 'Ruta no encontrada' });
 });
-
-// Error Handler
-app.use(errorHandler);
 
 module.exports = app;

@@ -1,6 +1,11 @@
 // Solo cargar dotenv en desarrollo local (Vercel provee variables de entorno directamente)
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config();
+try {
+  if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config();
+  }
+} catch (error) {
+  // Ignorar si dotenv no está disponible en producción
+  console.log('dotenv no disponible, usando variables de entorno del sistema');
 }
 
 /**
