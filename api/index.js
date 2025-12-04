@@ -49,7 +49,8 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     hasMongoUri: !!process.env.MONGODB_URI,
-    hasJwtSecret: !!process.env.JWT_SECRET
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    mongoState: mongoose.connection.readyState // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
   });
 });
 
@@ -58,54 +59,39 @@ app.get('/', (req, res) => {
   res.status(200).json({ 
     success: true, 
     message: 'La Ruta el Pastelazo - Backend API',
-    version: '1.0.0'
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      docs: 'API endpoints coming soon'
+    }
   });
 });
 
-// Middleware DB para rutas de API
-const dbMiddleware = async (req, res, next) => {
+// Test DB connection
+app.get('/api/test-db', async (req, res) => {
   try {
     await connectToDatabase();
-    next();
+    res.json({
+      success: true,
+      message: 'MongoDB conectado correctamente',
+      state: mongoose.connection.readyState
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error de conexión a base de datos',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Error conectando a MongoDB',
+      error: error.message
     });
   }
-};
-
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Demasiadas solicitudes'
 });
-
-// Cargar rutas de forma segura
-try {
-  const authRoutes = require('../routes/authRoutes');
-  const userRoutes = require('../routes/userRoutes');
-  const productRoutes = require('../routes/productRoutes');
-  const orderRoutes = require('../routes/orderRoutes');
-  const errorHandler = require('../middlewares/errorHandler');
-
-  // Rutas API
-  app.use('/api/auth', limiter, dbMiddleware, authRoutes);
-  app.use('/api/users', limiter, dbMiddleware, userRoutes);
-  app.use('/api/products', limiter, dbMiddleware, productRoutes);
-  app.use('/api/orders', limiter, dbMiddleware, orderRoutes);
-
-  // Error Handler
-  app.use(errorHandler);
-} catch (error) {
-  console.error('❌ Error cargando rutas:', error.message);
-}
 
 // 404
 app.use('*', (req, res) => {
-  res.status(404).json({ success: false, message: 'Ruta no encontrada' });
+  res.status(404).json({ 
+    success: false, 
+    message: 'Ruta no encontrada',
+    path: req.originalUrl 
+  });
 });
 
 module.exports = app;
