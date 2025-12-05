@@ -45,10 +45,14 @@ const User = mongoose.models.User || mongoose.model('User', userSchema);
 // =====================
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  description: { type: String, required: true },
+  description: { type: String, trim: true },
   price: { type: Number, required: true, min: 0 },
-  category: { type: String, required: true },
-  image: { type: String, required: true },
+  img: { type: String, default: '/imagenes/tortas/default.png' },
+  category: { 
+    type: String, 
+    required: true,
+    enum: ['clasicas', 'especiales', 'frutales', 'gourmet', 'clasicos', 'saludables', 'veganos', 'individuales']
+  },
   stock: { type: Number, default: 0, min: 0 },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
@@ -140,6 +144,137 @@ app.get('/', (req, res) => {
     message: 'La Ruta el Pastelazo - Backend API',
     version: '1.0.0'
   });
+});
+
+// =====================
+// RUTA PARA POBLAR BD (solo en desarrollo o con clave secreta)
+// =====================
+app.post('/api/seed', async (req, res) => {
+  try {
+    // Verificar clave secreta para seguridad
+    const { secret } = req.body;
+    if (secret !== process.env.SEED_SECRET && process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        message: 'No autorizado'
+      });
+    }
+
+    await connectToDatabase();
+
+    // Productos de ejemplo
+    const sampleProducts = [
+      {
+        name: "Torta Cuadrada de Chocolate",
+        description: "Deliciosa torta de chocolate húmeda con cobertura de chocolate intenso.",
+        price: 14990,
+        img: "/imagenes/tortas/Torta Cuadrada de Chocolate.png",
+        category: "clasicas",
+        stock: 10,
+        isActive: true
+      },
+      {
+        name: "Torta Circular de Vainilla",
+        description: "Esponjosa torta de vainilla con suave crema de mantequilla.",
+        price: 12990,
+        img: "/imagenes/tortas/Torta_Circular_de_Vainilla.png",
+        category: "clasicas",
+        stock: 8,
+        isActive: true
+      },
+      {
+        name: "Torta Circular de Manjar",
+        description: "Torta de vainilla rellena con exquisito manjar casero.",
+        price: 15990,
+        img: "/imagenes/tortas/Torta_Circular _de _Manjar.png",
+        category: "clasicas",
+        stock: 6,
+        isActive: true
+      },
+      {
+        name: "Torta Tres Leches",
+        description: "Suave bizcocho empapado en tres tipos de leche con crema chantilly.",
+        price: 18990,
+        img: "/imagenes/tortas/Torta_Tres_Leches.png",
+        category: "especiales",
+        stock: 5,
+        isActive: true
+      },
+      {
+        name: "Tiramisu Clásico",
+        description: "El clásico postre italiano con café, mascarpone y cacao.",
+        price: 16990,
+        img: "/imagenes/postres/Tiramisu_clasico.png",
+        category: "especiales",
+        stock: 7,
+        isActive: true
+      },
+      {
+        name: "Cheesecake de Frutos Rojos",
+        description: "Cremoso cheesecake con salsa de frutos rojos naturales.",
+        price: 19990,
+        img: "/imagenes/postres/Cheesecake_frutos_rojos.png",
+        category: "frutales",
+        stock: 4,
+        isActive: true
+      },
+      {
+        name: "Torta Cumpleaños Decorada",
+        description: "Torta personalizada perfecta para celebraciones especiales.",
+        price: 25990,
+        img: "/imagenes/tortas/Torta_cumpleanos.png",
+        category: "especiales",
+        stock: 3,
+        isActive: true
+      },
+      {
+        name: "Torta Vegana de Chocolate",
+        description: "Deliciosa torta de chocolate 100% vegana, sin ingredientes de origen animal.",
+        price: 17990,
+        img: "/imagenes/tortas/Torta_vegana_chocolate.png",
+        category: "veganos",
+        stock: 5,
+        isActive: true
+      },
+      {
+        name: "Cheesecake Sin Azúcar",
+        description: "Versión saludable del cheesecake, endulzado con stevia natural.",
+        price: 16990,
+        img: "/imagenes/postres/Cheesecake_sin_azucar.png",
+        category: "saludables",
+        stock: 6,
+        isActive: true
+      },
+      {
+        name: "Mini Tortas Individuales",
+        description: "Selección de 6 mini tortas de diferentes sabores.",
+        price: 12990,
+        img: "/imagenes/tortas/Mini_tortas_individuales.png",
+        category: "individuales",
+        stock: 10,
+        isActive: true
+      }
+    ];
+
+    // Limpiar productos existentes
+    await Product.deleteMany({});
+    
+    // Insertar productos
+    const products = await Product.insertMany(sampleProducts);
+
+    res.json({
+      success: true,
+      message: 'Base de datos poblada exitosamente',
+      productsCreated: products.length
+    });
+  } catch (error) {
+    console.error('Error en seed:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error poblando base de datos',
+      error: error.message
+    });
+  }
 });
 
 // =====================
@@ -368,7 +503,7 @@ const orderItemSchema = new mongoose.Schema({
   name: { type: String, required: true },
   quantity: { type: Number, required: true, min: 1 },
   price: { type: Number, required: true, min: 0 },
-  image: { type: String }
+  img: { type: String }
 }, { _id: false });
 
 const orderSchema = new mongoose.Schema({
@@ -479,7 +614,7 @@ app.get('/api/orders', authMiddleware, async (req, res) => {
     await connectToDatabase();
     
     const orders = await Order.find({ userId: req.user.userId })
-      .populate('items.productId', 'name image')
+      .populate('items.productId', 'name img')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -509,7 +644,7 @@ app.get('/api/orders/all', authMiddleware, async (req, res) => {
 
     const orders = await Order.find()
       .populate('userId', 'firstName lastName email')
-      .populate('items.productId', 'name image')
+      .populate('items.productId', 'name img')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -532,7 +667,7 @@ app.get('/api/orders/:id', async (req, res) => {
     
     const order = await Order.findById(req.params.id)
       .populate('userId', 'firstName lastName email')
-      .populate('items.productId', 'name image');
+      .populate('items.productId', 'name img');
 
     if (!order) {
       return res.status(404).json({
