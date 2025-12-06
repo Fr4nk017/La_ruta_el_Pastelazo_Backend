@@ -87,7 +87,19 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    version: '1.2.0-debug'
+  });
+});
+
+// Test endpoint para verificar que se está recibiendo data correctamente
+app.post('/test-order', express.json(), (req, res) => {
+  console.log('🧪 TEST ENDPOINT - Received data:');
+  console.log(JSON.stringify(req.body, null, 2));
+  res.status(200).json({
+    success: true,
+    message: 'Data received correctly',
+    receivedData: req.body
   });
 });
 
