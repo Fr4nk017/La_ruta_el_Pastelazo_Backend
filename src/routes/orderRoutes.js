@@ -220,6 +220,8 @@ router.get('/:id', authenticate, getOrderById);
  *         description: Orden no encontrada
  */
 router.put('/:id/status', authenticate, requireRole(['admin', 'trabajador']), updateOrderStatus);
+// Alias con PATCH para compatibilidad con frontend
+router.patch('/:id/status', authenticate, requireRole(['admin', 'trabajador']), updateOrderStatus);
 
 /**
  * @swagger
