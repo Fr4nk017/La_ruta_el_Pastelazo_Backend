@@ -197,10 +197,44 @@ const createOrder = async (req, res, next) => {
       });
     }
 
-    if (!customerInfo || !deliveryDate || !deliveryTime || !paymentMethod) {
+    if (!customerInfo) {
       return res.status(400).json({
-        message: 'Faltan campos requeridos: customerInfo, deliveryDate, deliveryTime, paymentMethod',
+        message: 'Falta customerInfo',
+        statusCode: 400,
+        receivedData: req.body
+      });
+    }
+
+    if (!deliveryDate) {
+      return res.status(400).json({
+        message: 'Falta deliveryDate',
         statusCode: 400
+      });
+    }
+
+    if (!deliveryTime) {
+      return res.status(400).json({
+        message: 'Falta deliveryTime',
+        statusCode: 400
+      });
+    }
+
+    if (!paymentMethod) {
+      return res.status(400).json({
+        message: 'Falta paymentMethod',
+        statusCode: 400
+      });
+    }
+
+    // Validar campos requeridos en customerInfo
+    const requiredCustomerFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'comuna'];
+    const missingFields = requiredCustomerFields.filter(field => !customerInfo[field]);
+    
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        message: `Faltan campos en customerInfo: ${missingFields.join(', ')}`,
+        statusCode: 400,
+        missingFields
       });
     }
 
@@ -213,47 +247,54 @@ const createOrder = async (req, res, next) => {
       
       console.log(`🔍 Buscando producto con ID: "${item.productId}" (tipo: ${typeof item.productId})`);
       
-      // Intentar buscar por ObjectId primero
+      // Verificar que productId no esté vacío
+      if (!item.productId) {
+        return res.status(400).json({
+          message: 'El productId no puede estar vacío en los items',
+          statusCode: 400,
+          item
+        });
+      }
+      
+      // Intentar buscar por ObjectId primero (más rápido)
       try {
-        if (item.productId && item.productId.match(/^[0-9a-fA-F]{24}$/)) {
+        if (typeof item.productId === 'string' && item.productId.match(/^[0-9a-fA-F]{24}$/)) {
           console.log('🎯 Buscando por ObjectId...');
-          product = await Product.findById(item.productId);
+          product = await Product.findById(item.productId).lean();
+          if (product) {
+            console.log(`✅ Producto encontrado por ObjectId: ${product.name}`);
+          }
         }
       } catch (error) {
-        console.log('❌ Error en búsqueda por ObjectId:', error.message);
+        console.log('⚠️ Error en búsqueda por ObjectId:', error.message);
       }
       
-      // Si no se encontró por ObjectId, buscar por nombre o slug
       if (!product) {
-        console.log('🔍 Buscando por nombre/slug...');
+        console.log('❌ No se encontró producto por ObjectId, intentando búsqueda por nombre/slug');
         
-        // Intentar mapear nombres conocidos a productos existentes
-        const nameMapping = {
-          'torta_manjar': 'Torta Circular de Manjar',
-          'torta_choco_cuadrada': 'Torta Cuadrada de Chocolate',
-          'torta_vainilla_circular': 'Torta Circular de Vainilla'
-        };
-        
-        const searchName = nameMapping[item.productId] || item.productId;
-        
+        // Fallback: buscar por nombre exacto o similar
         product = await Product.findOne({
           $or: [
-            { name: { $regex: searchName, $options: 'i' } },
-            { name: searchName }
+            { name: item.productId },
+            { name: { $regex: item.productId, $options: 'i' } },
+            { slug: item.productId }
           ]
-        });
+        }).lean();
+        
+        if (product) {
+          console.log(`✅ Producto encontrado por nombre: ${product.name}`);
+        }
       }
       
       if (!product) {
-        console.log(`❌ Producto no encontrado: "${item.productId}"`);
+        console.error(`❌ Producto no encontrado: "${item.productId}"`);
         return res.status(404).json({
           message: `Producto no encontrado: ${item.productId}`,
-          statusCode: 404
+          statusCode: 404,
+          receivedProductId: item.productId,
+          receivedType: typeof item.productId
         });
       }
-      
-      console.log(`✅ Producto encontrado: ${product.name} (${product._id})`);
-      
 
       if (!product.isActive) {
         return res.status(400).json({
