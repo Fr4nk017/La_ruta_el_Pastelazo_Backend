@@ -173,6 +173,10 @@ const getOrderPublic = async (req, res, next) => {
  */
 const createOrder = async (req, res, next) => {
   try {
+    console.log('📥 POST /api/orders - Request received');
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔐 Request user:', req.user || 'No authenticated');
+    
     // Permitir órdenes tanto con usuario autenticado como invitados
     // Asegurar que userId solo se asigne si el usuario está autenticado
     let userId = null;
@@ -189,8 +193,16 @@ const createOrder = async (req, res, next) => {
       couponCode
     } = req.body;
 
+    console.log('🔍 Validating required fields...');
+    console.log('✓ items:', items ? `${items.length} items` : 'MISSING');
+    console.log('✓ customerInfo:', customerInfo ? 'present' : 'MISSING');
+    console.log('✓ deliveryDate:', deliveryDate ? 'present' : 'MISSING');
+    console.log('✓ deliveryTime:', deliveryTime ? 'present' : 'MISSING');
+    console.log('✓ paymentMethod:', paymentMethod ? 'present' : 'MISSING');
+
     // Validar campos requeridos
     if (!items || !Array.isArray(items) || items.length === 0) {
+      console.error('❌ Validation failed: items');
       return res.status(400).json({
         message: 'Debe incluir al menos un producto',
         statusCode: 400
@@ -198,6 +210,7 @@ const createOrder = async (req, res, next) => {
     }
 
     if (!customerInfo) {
+      console.error('❌ Validation failed: customerInfo missing');
       return res.status(400).json({
         message: 'Falta customerInfo',
         statusCode: 400,
@@ -206,6 +219,7 @@ const createOrder = async (req, res, next) => {
     }
 
     if (!deliveryDate) {
+      console.error('❌ Validation failed: deliveryDate missing');
       return res.status(400).json({
         message: 'Falta deliveryDate',
         statusCode: 400
@@ -213,6 +227,7 @@ const createOrder = async (req, res, next) => {
     }
 
     if (!deliveryTime) {
+      console.error('❌ Validation failed: deliveryTime missing');
       return res.status(400).json({
         message: 'Falta deliveryTime',
         statusCode: 400
@@ -220,6 +235,7 @@ const createOrder = async (req, res, next) => {
     }
 
     if (!paymentMethod) {
+      console.error('❌ Validation failed: paymentMethod missing');
       return res.status(400).json({
         message: 'Falta paymentMethod',
         statusCode: 400
@@ -231,6 +247,7 @@ const createOrder = async (req, res, next) => {
     const missingFields = requiredCustomerFields.filter(field => !customerInfo[field]);
     
     if (missingFields.length > 0) {
+      console.error('❌ Validation failed: missing customerInfo fields:', missingFields);
       return res.status(400).json({
         message: `Faltan campos en customerInfo: ${missingFields.join(', ')}`,
         statusCode: 400,
@@ -345,12 +362,20 @@ const createOrder = async (req, res, next) => {
     if (userId) {
       orderData.userId = userId;
     }
+    
+    console.log('✅ All validation passed, creating order...');
+    console.log('📦 Order data to be saved:', JSON.stringify(orderData, null, 2));
+    
     const order = await Order.create(orderData);
+    
+    console.log('✅ Order created successfully with ID:', order._id);
 
     // Poblar para la respuesta
     const populatedOrder = await Order.findById(order._id)
       .populate('items.productId', 'name img category');
 
+    console.log('✅ Order populated, sending response...');
+    
     res.status(201).json({
       message: 'Orden creada exitosamente',
       statusCode: 201,
