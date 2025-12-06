@@ -63,6 +63,22 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // =====================
+// Middleware de Debugging
+// =====================
+// Log todas las peticiones POST a /api/orders
+app.use('/api/orders', (req, res, next) => {
+  if (req.method === 'POST') {
+    console.log('\n🚀 ================== NEW ORDER REQUEST ==================');
+    console.log('📥 Method:', req.method);
+    console.log('📥 URL:', req.originalUrl);
+    console.log('📥 Headers:', req.headers);
+    console.log('📥 Body:', JSON.stringify(req.body, null, 2));
+    console.log('🚀 =========================================================\n');
+  }
+  next();
+});
+
+// =====================
 // Rutas
 // =====================
 
