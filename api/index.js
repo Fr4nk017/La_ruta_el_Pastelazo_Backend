@@ -572,29 +572,66 @@ app.post('/api/orders', async (req, res) => {
   try {
     await connectToDatabase();
     
-    const { items, customerInfo, deliveryInfo, paymentMethod } = req.body;
+    const { items, customerInfo = {}, deliveryInfo, paymentMethod } = req.body;
 
-    if (!items || items.length === 0) {
+    if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'La orden debe tener al menos un producto'
       });
     }
 
-    if (!customerInfo || !customerInfo.name || !customerInfo.email || !customerInfo.phone) {
+    // Normalizar customerInfo: aceptar {name} o {firstName, lastName}
+    const customerName = customerInfo.name || [customerInfo.firstName, customerInfo.lastName].filter(Boolean).join(' ').trim();
+    if (!customerName || !customerInfo.email || !customerInfo.phone) {
       return res.status(400).json({
         success: false,
-        message: 'Información del cliente incompleta'
+        message: 'Información del cliente incompleta (name/firstName+lastName, email, phone)'
       });
     }
 
-    // Calcular total
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    // Preparar items tomando precios reales del catálogo si se envía productId
+    const processedItems = [];
+    let totalAmount = 0;
+
+    for (const item of items) {
+      if (!item.productId && !item.price) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cada item debe tener productId o price'
+        });
+      }
+
+      let product = null;
+      if (item.productId) {
+        product = await Product.findById(item.productId).lean();
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: `Producto no encontrado: ${item.productId}`
+          });
+        }
+      }
+
+      const price = product ? product.price : item.price;
+      const name = product ? product.name : item.name;
+      const quantity = item.quantity || 1;
+
+      processedItems.push({
+        productId: product ? product._id : undefined,
+        name,
+        price,
+        quantity,
+        img: product?.img || item.img
+      });
+
+      totalAmount += price * quantity;
+    }
 
     const orderData = {
-      items,
+      items: processedItems,
       totalAmount,
-      customerInfo,
+      customerInfo: { ...customerInfo, name: customerName },
       deliveryInfo,
       paymentMethod: paymentMethod || 'cash',
       status: 'pending'
@@ -768,12 +805,12 @@ app.patch('/api/orders/:id/status', authMiddleware, async (req, res) => {
 // RUTAS DE USUARIOS
 // =====================
 
-// GET /api/users - Obtener todos los usuarios (solo admin)
+// GET /api/users - Obtener todos los usuarios (admin y trabajador)
 app.get('/api/users', authMiddleware, async (req, res) => {
   try {
     await connectToDatabase();
     
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'trabajador'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Solo administradores pueden ver usuarios'
@@ -855,12 +892,12 @@ app.put('/api/users/profile', authMiddleware, async (req, res) => {
   }
 });
 
-// GET /api/users/:id - Obtener usuario por ID (admin)
+// GET /api/users/:id - Obtener usuario por ID (admin y trabajador)
 app.get('/api/users/:id', authMiddleware, async (req, res) => {
   try {
     await connectToDatabase();
     
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'trabajador'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Solo administradores pueden ver otros usuarios'

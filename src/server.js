@@ -155,26 +155,32 @@ app.use('*', (req, res) => {
 app.use(errorHandler);
 
 // =====================
-// Iniciar Servidor
+// Iniciar Servidor (solo en ejecución tradicional)
+// En Vercel serverless se exporta app sin listen
 // =====================
 const PORT = config.PORT;
+const isVercel = !!process.env.VERCEL;
 
-app.listen(PORT, () => {
-  console.log(`
-  ╔═══════════════════════════════════════════════════╗
-  ║                                                   ║
-  ║   🚀 Server running on port ${PORT}                ║
-  ║   📦 Environment: ${config.NODE_ENV.padEnd(27)} ║
-  ║   🔗 http://localhost:${PORT}                      ║
-  ║                                                   ║
-  ╚═══════════════════════════════════════════════════╝
-  `);
-});
+if (!isVercel) {
+  app.listen(PORT, () => {
+    console.log(`
+    ╔═══════════════════════════════════════════════════╗
+    ║                                                   ║
+    ║   🚀 Server running on port ${PORT}                ║
+    ║   📦 Environment: ${config.NODE_ENV.padEnd(27)} ║
+    ║   🔗 http://localhost:${PORT}                      ║
+    ║                                                   ║
+    ╚═══════════════════════════════════════════════════╝
+    `);
+  });
+}
 
 // Manejo de errores no capturados
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Rejection:', err);
-  process.exit(1);
+  if (!isVercel) {
+    process.exit(1);
+  }
 });
 
 module.exports = app;
