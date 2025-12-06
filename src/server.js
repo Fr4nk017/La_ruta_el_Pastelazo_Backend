@@ -30,15 +30,24 @@ app.use(helmet());
 
 // CORS
 // Permitir múltiples orígenes en desarrollo (React y Vite)
-const allowedOrigins = (config.CORS_ORIGIN || '').split(',').map(o => o.trim());
+const allowedOrigins = (config.CORS_ORIGIN || '')
+  .split(',')
+  .map(o => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
 app.use(cors({
   origin: function(origin, callback) {
     // Permitir requests sin origin (como Postman) o si está en la lista
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('No permitido por CORS: ' + origin));
+    if (!origin) {
+      return callback(null, true);
     }
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('No permitido por CORS: ' + origin));
   },
   credentials: true
 }));

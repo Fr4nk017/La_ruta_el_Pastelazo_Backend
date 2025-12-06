@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const config = require('../src/config/env');
 
 const app = express();
 
@@ -99,18 +100,22 @@ const authMiddleware = async (req, res, next) => {
 let isConnected = false;
 
 const connectToDatabase = async () => {
+  if (!config.MONGODB_URI) {
+    throw new Error('MONGODB_URI no está definida. Configúrala en el entorno de Vercel.');
+  }
+
   if (isConnected && mongoose.connection.readyState === 1) {
     return;
   }
 
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    await mongoose.connect(config.MONGODB_URI, {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
     isConnected = true;
-    console.log('✅ MongoDB conectado');
+    console.log(`✅ MongoDB conectado (${config.NODE_ENV})`);
   } catch (error) {
     console.error('❌ Error MongoDB:', error.message);
     isConnected = false;
@@ -122,7 +127,28 @@ const connectToDatabase = async () => {
 // Middlewares
 // =====================
 app.use(helmet());
-app.use(cors({ origin: '*', credentials: true }));
+
+// CORS alineado con config/CORS_ORIGIN (permite múltiples dominios separados por coma)
+const allowedOrigins = (config.CORS_ORIGIN || '')
+  .split(',')
+  .map(o => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+
+app.use(cors({
+  origin: function(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error('No permitido por CORS: ' + origin));
+  },
+  credentials: true,
+}));
 app.use(morgan(process.env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
